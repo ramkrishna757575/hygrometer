@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <LowPower.h>
 #include "modes.h"
+#include "display_utils.h"
 #include "debug.h"
 #include "alarm_scheduler.h"
 #include "ui_format.h"
@@ -131,7 +132,13 @@ void updateHygroMode()
     }
     digitalWrite(DHT_PWR, LOW);
     float vbat = readBatteryVolts();
-    DBG_PRINT(F("[HYGRO] T=")); DBG_PRINT(tc, 1); DBG_PRINT(F("C  RH=")); DBG_PRINT(rh, 1); DBG_PRINT(F("%  Vbat=")); DBG_PRINT(vbat, 3); DBG_PRINTLN(F("V"));
+    DBG_PRINT(F("[HYGRO] T="));
+    DBG_PRINT(tc, 1);
+    DBG_PRINT(F("C  RH="));
+    DBG_PRINT(rh, 1);
+    DBG_PRINT(F("%  Vbat="));
+    DBG_PRINT(vbat, 3);
+    DBG_PRINTLN(F("V"));
     char l1[17];
     buildHygroLine1(tc, rh, l1, sizeof(l1));
     lcd.setCursor(0, 0);
@@ -157,10 +164,17 @@ void updateHygroMode()
     buildHygroLine2(ebuf, rtcFlag, vbat, batFlag, l2, sizeof(l2));
     lcd.setCursor(0, 1);
     lcdPrint16(l2);
-    DBG_PRINT(F("[HYGRO] LCD L2: ")); DBG_PRINTLN(l2);
-    DBG_PRINT(F("[HYGRO] Elapsed=")); DBG_PRINT(ebuf); DBG_PRINT('('); DBG_PRINT(rtcFlag); DBG_PRINT(F(")  V="));
+    DBG_PRINT(F("[HYGRO] LCD L2: "));
+    DBG_PRINTLN(l2);
+    DBG_PRINT(F("[HYGRO] Elapsed="));
+    DBG_PRINT(ebuf);
+    DBG_PRINT('(');
+    DBG_PRINT(rtcFlag);
+    DBG_PRINT(F(")  V="));
     int elen = strlen(ebuf);
     DBG_PRINT(vbat, (elen <= 7) ? 2 : ((elen == 8) ? 1 : 0));
-    DBG_PRINT(F("V  Flag=")); DBG_PRINT(batFlag); DBG_PRINTLN();
+    DBG_PRINT(F("V  Flag="));
+    DBG_PRINT(batFlag);
+    DBG_PRINTLN();
     backlightMaintain(currentSeconds());
 }
