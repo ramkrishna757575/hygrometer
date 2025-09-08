@@ -43,7 +43,6 @@ void drainSerial(unsigned long ms = 250);
 // lcdPrint16 moved to display_utils.cpp
 // Formatting / battery helpers live in dedicated modules.
 
-
 // readSwitchMode now in modes.cpp
 
 // PCINT setup & ISRs: see interrupts.* ; currentSeconds() inline in app_state.h
