@@ -1,0 +1,16 @@
+{
+  "python.autoComplete.extraPaths": [
+    "/Users/rkv/.vscode/extensions/continue.continue-0.8.1-darwin-arm64",
+    "${workspaceFolder}/sources/poky/bitbake/lib",
+    "${workspaceFolder}/sources/poky/meta/lib"
+  ],
+  "python.analysis.extraPaths": [
+    "/Users/rkv/.vscode/extensions/continue.continue-0.8.1-darwin-arm64",
+    "${workspaceFolder}/sources/poky/bitbake/lib",
+    "${workspaceFolder}/sources/poky/meta/lib"
+  ],
+  "files.associations": {
+    "*.conf": "bitbake",
+    "*.inc": "bitbake"
+  }
+}

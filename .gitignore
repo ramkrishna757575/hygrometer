@@ -1,0 +1,36 @@
+.pio/
+
+# VS Code intellisense caches
+.vscode/.browse.c_cpp.db*
+.vscode/ipch/
+
+# Optional VSCode config (keep if you want to share launch/config)
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+
+# OS / editor noise
+*.DS_Store
+*~
+*.swp
+
+# Python cache (future scripts)
+__pycache__/
+
+# Node modules (future tooling)
+node_modules/
+
+# Coverage / test artifacts
+coverage/
+*.gcda
+*.gcno
+
+# Build outputs (if exported)
+*.bin
+*.elf
+*.hex
+
+# Logs
+*.log
+
+# Temporary
+.tmp/
