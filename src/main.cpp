@@ -20,6 +20,9 @@
 #include "time_commands.h"
 #include "app_state.h"
 #include "interrupts.h"
+#include "globals.h"
+#include "display_utils.h"
+#include "modes.h"
 
 // All configuration/constants in headers; this file orchestrates modes & main loop.
 
@@ -29,9 +32,7 @@ RTC_DS3231 rtc;
 AppState g_app; // global runtime state (see app_state.h)
 
 // ---------- Forward declarations ----------
-void updateHygroMode();
-void updateClockMode();
-void enterMode(DeviceMode m);
+// (moved update/enter functions live in modes.*)
 void sleepUntilAlarmOrSwitch();
 bool sleepUntilNextOrSwitch(uint16_t remainSec, uint16_t *sleptSecOut);
 void rtc_use_sqw_for_clock();
@@ -39,21 +40,11 @@ void rtc_use_sqw_for_clock();
 void drainSerial(unsigned long ms = 250);
 
 // ---------- Small helpers ----------
-void lcdPrint16(const char *s)
-{
-  char b[17];
-  uint8_t i = 0;
-  for (; i < 16 && s[i]; ++i)
-    b[i] = s[i];
-  for (; i < 16; ++i)
-    b[i] = ' ';
-  b[16] = 0;
-  lcd.print(b);
-}
+// lcdPrint16 moved to display_utils.cpp
 // Formatting / battery helpers live in dedicated modules.
 
 
-DeviceMode readSwitchMode() { return (digitalRead(MODE_PIN) == LOW) ? MODE_HYGRO : MODE_CLOCK; }
+// readSwitchMode now in modes.cpp
 
 // PCINT setup & ISRs: see interrupts.* ; currentSeconds() inline in app_state.h
 
@@ -74,86 +65,12 @@ void drainSerial(unsigned long ms)
 }
 
 // ---------- DS3231 helpers ----------
-void rtc_use_sqw_for_clock()
-{
-  rtc.clearAlarm(1);
-  rtc.clearAlarm(2);
-  rtc.writeSqwPinMode(DS3231_SquareWave1Hz);
-  DBG_PRINTLN(F("[RTC] SQW=1Hz (Clock mode)"));
-}
+// rtc_use_sqw_for_clock moved into modes.cpp (static)
 
 // (Direct rtc alarm programming moved to alarm_scheduler)
 
 // ---------- Mode enter/update ----------
-void enterMode(DeviceMode m)
-{
-  g_app.currentMode = m;
-  // Suppress switch PCINT briefly to avoid chatter flooding after transition
-  interruptsMaskSwitch(true);
-  if (m == MODE_HYGRO)
-  {
-    DBG_PRINTLN(F("[MODE] Enter Hygrometer"));
-    if (g_app.rtcAvailable)
-    {
-      g_app.modeStartRTC = rtc.now();
-      uint32_t epoch = g_app.modeStartRTC.unixtime();
-      hygroSchedulerInit(epoch);
-
-      // Prepare UI & PCINT
-      interruptsEnableTick(true); // D5 as INT (falling)
-      g_app.lastPinsD = PIND;     // re-sync PCINT baseline
-
-      lcd.setCursor(0, 0);
-      lcdPrint16("Mode: Hygrometer");
-      lcd.setCursor(0, 1);
-      lcdPrint16("Init...");
-      delay(50);
-
-      // Immediate sample so we don't linger on "Init..."
-      updateHygroMode();
-      hygroSchedulerMarkSample(epoch);
-    }
-    else
-    {
-      g_app.modeStartMillis = millis();
-      g_app.lastHygroUpdateMillis = 0;
-      g_app.modeSleepSecondsAccum = 0;
-
-      interruptsEnableTick(true);
-      g_app.lastPinsD = PIND;
-
-      lcd.setCursor(0, 0);
-      lcdPrint16("Mode: Hygrometer");
-      lcd.setCursor(0, 1);
-      lcdPrint16("Init...");
-      delay(50);
-      updateHygroMode();
-#if ENABLE_ALARM_FAILSAFE
-      // No RTC in this branch: failsafe logic is RTC-dependent and not used.
-#endif
-    }
-  }
-  else
-  { // MODE_CLOCK
-    DBG_PRINTLN(F("[MODE] Enter Clock"));
-    if (g_app.rtcAvailable)
-      rtc_use_sqw_for_clock();
-
-    interruptsEnableTick(true); // D5 as SQW (rising)
-    g_app.lastPinsD = PIND;     // re-sync PCINT baseline
-
-    lcd.setCursor(0, 0);
-    lcdPrint16("Mode: Clock     ");
-    lcd.setCursor(0, 1);
-    lcdPrint16(g_app.rtcAvailable ? "RTC OK" : "No RTC");
-    delay(50);
-
-    // brief keep-awake to ensure we see the first tick
-    g_app.serialAwakeUntil = millis() + 1200;
-  }
-  // Re-enable after short suppression period tracked via timestamp
-  g_app.lastModeEnterMs = millis(); // reuse existing timestamp
-}
+// enterMode moved to modes.cpp
 
 // Hygro: sleep until alarm (INT low) or user action
 void sleepUntilAlarmOrSwitch()
@@ -226,115 +143,9 @@ void sleepUntilTickOrSwitch()
 }
 
 // 12-hour Clock UI with AM/PM
-void updateClockMode()
-{
-  static int8_t lastSecRTC = -1;
-  static unsigned long lastSoftSec = (unsigned long)-1;
+// updateClockMode moved
 
-  if (g_app.rtcAvailable)
-  {
-    DateTime now = rtc.now();
-    if (now.second() == lastSecRTC)
-      return;
-    lastSecRTC = now.second();
-    float vbat = readBatteryVolts();
-    char l1[17], l2[17];
-    buildClockLines(true, now, 0, vbat, l1, sizeof(l1), l2, sizeof(l2));
-    lcd.setCursor(0, 0);
-    lcdPrint16(l1);
-    lcd.setCursor(0, 1);
-    lcdPrint16(l2);
-  }
-  else
-  {
-    if (g_app.softSeconds == lastSoftSec)
-      return;
-    lastSoftSec = g_app.softSeconds;
-    float vbat = readBatteryVolts();
-    char l1[17], l2[17];
-    DateTime dummy((uint32_t)0); // not used when haveRTC=false
-    buildClockLines(false, dummy, g_app.softSeconds, vbat, l1, sizeof(l1), l2, sizeof(l2));
-    lcd.setCursor(0, 0);
-    lcdPrint16(l1);
-    lcd.setCursor(0, 1);
-    lcdPrint16(l2);
-  }
-
-  backlightMaintain(currentSeconds());
-}
-
-void updateHygroMode()
-{
-  DBG_PRINTLN(F("[HYGRO] Power DHT..."));
-  digitalWrite(DHT_PWR, HIGH);
-  delay(DHT_SETTLE_MS);
-  dht.begin();
-  float rh = dht.readHumidity();
-  float tc = dht.readTemperature();
-  if (isnan(rh) || isnan(tc))
-  {
-    DBG_PRINTLN(F("[HYGRO] Retry read"));
-    delay(400);
-    rh = dht.readHumidity();
-    tc = dht.readTemperature();
-  }
-  digitalWrite(DHT_PWR, LOW);
-
-  float vbat = readBatteryVolts();
-
-  DBG_PRINT(F("[HYGRO] T="));
-  DBG_PRINT(tc, 1);
-  DBG_PRINT(F("C  RH="));
-  DBG_PRINT(rh, 1);
-  DBG_PRINT(F("%  Vbat="));
-  DBG_PRINT(vbat, 3);
-  DBG_PRINTLN(F("V"));
-
-  char l1[17];
-  buildHygroLine1(tc, rh, l1, sizeof(l1));
-  lcd.setCursor(0, 0);
-  lcdPrint16(l1);
-
-  // --- anchored minutes (RTC path) ---
-  char ebuf[12];
-  if (g_app.rtcAvailable)
-  {
-    uint32_t nowEpoch = rtc.now().unixtime();
-    uint32_t base = hygroSchedulerBaseEpoch();
-    uint32_t secs = (nowEpoch > base) ? (nowEpoch - base) : 0;
-    TimeSpan el(secs);
-    formatElapsed(el, ebuf, sizeof(ebuf)); // minutes-only
-  }
-  else
-  {
-    // Fallback (no RTC): same as before (minutes from millis)
-    unsigned long awakeMs = millis() - g_app.modeStartMillis;
-    unsigned long elapsedMs = awakeMs + (g_app.modeSleepSecondsAccum * 1000UL);
-    formatElapsedMillis(elapsedMs, ebuf, sizeof(ebuf));
-  }
-
-  char l2[17];
-  char rtcFlag = g_app.rtcAvailable ? 'R' : 'T';
-  char batFlag = batteryFlag(vbat);
-  buildHygroLine2(ebuf, rtcFlag, vbat, batFlag, l2, sizeof(l2));
-  lcd.setCursor(0, 1);
-  lcdPrint16(l2);
-
-  DBG_PRINT(F("[HYGRO] LCD L2: "));
-  DBG_PRINTLN(l2);
-  DBG_PRINT(F("[HYGRO] Elapsed="));
-  DBG_PRINT(ebuf);
-  DBG_PRINT('(');
-  DBG_PRINT(rtcFlag);
-  DBG_PRINT(F(")  V="));
-  int elen = strlen(ebuf);
-  DBG_PRINT(vbat, (elen <= 7) ? 2 : ((elen == 8) ? 1 : 0));
-  DBG_PRINT(F("V  Flag="));
-  DBG_PRINT(batFlag);
-  DBG_PRINTLN();
-
-  backlightMaintain(currentSeconds());
-}
+// updateHygroMode moved
 
 // ---------- setup/loop ----------
 void setup()
