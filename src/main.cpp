@@ -52,22 +52,6 @@ void lcdPrint16(const char *s)
 }
 // Formatting / battery helpers live in dedicated modules.
 
-// Minutes-only elapsed (dHH:MM, no seconds)
-void formatElapsed(const TimeSpan &ts, char *out, size_t n)
-{
-  uint32_t mins = ts.totalseconds() / 60;
-  snprintf(out, n, "%lud%02u:%02u",
-           (unsigned long)(mins / (24u * 60u)),
-           (uint8_t)((mins / 60u) % 24u),
-           (uint8_t)(mins % 60u));
-}
-
-void formatElapsedMillis(unsigned long ms, char *out, size_t n)
-{
-  unsigned long m = (ms / 1000UL) / 60UL;
-  snprintf(out, n, "%lud%02lu:%02lu",
-           (unsigned long)(m / (24UL * 60UL)), (m / 60UL) % 24UL, m % 60UL);
-}
 
 DeviceMode readSwitchMode() { return (digitalRead(MODE_PIN) == LOW) ? MODE_HYGRO : MODE_CLOCK; }
 

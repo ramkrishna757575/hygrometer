@@ -22,3 +22,7 @@ void buildHygroLine1(float tc, float rh, char *line1, size_t n);
 void buildHygroLine2(const char *elapsed, char rtcFlag,
                      float vbat, char batFlag,
                      char *line2, size_t n);
+
+// Elapsed time helpers (minutes granularity: dHH:MM). These were in main.cpp.
+void formatElapsed(const TimeSpan &ts, char *out, size_t n);          // RTC-based (TimeSpan)
+void formatElapsedMillis(unsigned long ms, char *out, size_t n);       // Millis-based fallback
