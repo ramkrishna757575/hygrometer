@@ -4,9 +4,9 @@
 #include "pins.h"
 
 // Divider values
-static const float Rtop = 100000.0f;
-static const float Rbot = 200000.0f;
-static const float VBAT_CAL = 1.000f;
+static const float Rtop = 180000.0f;
+static const float Rbot = 330000.0f;
+static const float VBAT_CAL = 0.9975308642f;
 
 // Battery thresholds
 static const float VBAT_FULL_TH = 4.00f;
